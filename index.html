@@ -81,6 +81,104 @@
     @media (max-width:1000px) { .masthead { grid-template-columns:160px 1fr; }.status { display:none; }.brand { height:100px; }.titles h1 {font-size:31px}.titles h2{font-size:19px}.titles p{font-size:17px}.grid{grid-template-columns:repeat(2,1fr)}.content{padding:28px} }
     @media (max-width:620px) { .shell{width:100%;margin:0}.masthead{grid-template-columns:1fr;padding:16px}.brand{display:none}.titles h1{font-size:28px}.titles h2{font-size:18px}.titles p{font-size:16px}.grid{grid-template-columns:1fr}.content-head{align-items:start;flex-direction:column}.card{min-height:112px;font-size:21px}nav a{padding:13px 12px;font-size:14px} }
   </style>
+
+  <!-- NPR_PORTAL_AUTH_GATE_V1: hide protected homepage until employee session is verified -->
+  <style>
+    html.npr-auth-pending body .shell { visibility: hidden !important; }
+  </style>
+  <script>
+    (function () {
+      'use strict';
+      document.documentElement.classList.add('npr-auth-pending');
+
+      var PORTAL = 'https://script.google.com/macros/s/AKfycbwGfQLoPhrb-RYfcvCNOFIlkluPEf64UvcIHMjNMDAfXTocNZSGtbf-Hw-tmv6EAmSi/exec';
+      var HOME = 'https://ronagpur.com/';
+      var TOKEN_KEY = 'nagpurEmployeePortalToken';
+      var NAME_KEY = 'nagpurEmployeePortalName';
+      var ROLE_KEY = 'nagpurEmployeePortalRole';
+      var finished = false;
+
+      function showHomepage(result) {
+        if (!result || result.ok !== true || !result.tokenRoleSafe) {
+          // tokenRoleSafe is only set after the response has been checked below.
+          deny();
+          return;
+        }
+        localStorage.setItem(TOKEN_KEY, result.token);
+        localStorage.setItem(NAME_KEY, result.name || result.employeeId || result.id || '');
+        localStorage.setItem(ROLE_KEY, result.role || 'employee');
+        document.documentElement.classList.remove('npr-auth-pending');
+        finished = true;
+      }
+
+      function deny() {
+        if (finished) return;
+        finished = true;
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(NAME_KEY);
+        localStorage.removeItem(ROLE_KEY);
+        var login = PORTAL + '?returnTo=' + encodeURIComponent(HOME);
+        window.location.replace(login);
+      }
+
+      function requestAuth(params, success) {
+        var callback = 'nprPortalCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        var script = document.createElement('script');
+        var timer = window.setTimeout(function () {
+          cleanup();
+          deny();
+        }, 12000);
+        function cleanup() {
+          window.clearTimeout(timer);
+          try { delete window[callback]; } catch (e) { window[callback] = undefined; }
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+        window[callback] = function (response) {
+          cleanup();
+          if (finished) return;
+          if (!response || response.ok !== true) { deny(); return; }
+          success(response);
+        };
+        script.onerror = function () { cleanup(); deny(); };
+        var query = Object.keys(params).map(function (key) {
+          return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+        }).join('&');
+        script.src = PORTAL + '?' + query + '&callback=' + encodeURIComponent(callback);
+        document.head.appendChild(script);
+      }
+
+      function validateStoredToken() {
+        var token = localStorage.getItem(TOKEN_KEY) || '';
+        if (!token) { deny(); return; }
+        requestAuth({ action: 'homeAuth', op: 'validate', token: token }, function (response) {
+          if (response.role !== 'employee') { deny(); return; }
+          response.token = token;
+          response.tokenRoleSafe = true;
+          showHomepage(response);
+        });
+      }
+
+      try {
+        var url = new URL(window.location.href);
+        var ticket = url.searchParams.get('portal_ticket') || '';
+        if (ticket) {
+          // Remove the one-time ticket from the address bar before exchanging it.
+          url.searchParams.delete('portal_ticket');
+          window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+          requestAuth({ action: 'homeAuth', op: 'consume', ticket: ticket }, function (response) {
+            if (response.role !== 'employee' || !response.token) { deny(); return; }
+            response.tokenRoleSafe = true;
+            showHomepage(response);
+          });
+        } else {
+          validateStoredToken();
+        }
+      } catch (e) {
+        deny();
+      }
+    })();
+  </script>
+
 </head>
 <body>
   <main class="shell">
