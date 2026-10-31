@@ -244,11 +244,9 @@
       'treasury-shift-summary',
       'other-monitoring'
     ];
-    function openLink(url) { window.open(url, '_blank', 'noopener'); }
+    function openLink(url) { window.location.href = url; }
     function showPosbMisc() { document.querySelector('.main-dashboard')?.classList.add('hidden'); document.getElementById('posbMiscPortal').classList.add('active'); document.getElementById('monitoring').scrollIntoView({behavior:'smooth',block:'start'}); }
     function hidePosbMisc() { document.getElementById('posbMiscPortal').classList.remove('active'); document.querySelector('.main-dashboard')?.classList.remove('hidden'); }
-    function showMailOperations() { document.querySelector('.main-dashboard')?.classList.add('hidden'); document.getElementById('mailPortal').classList.add('active'); document.getElementById('monitoring').scrollIntoView({behavior:'smooth',block:'start'}); }
-    function hideMailOperations() { document.getElementById('mailPortal').classList.remove('active'); document.querySelector('.main-dashboard')?.classList.remove('hidden'); }
     function comingSoon(section) { document.getElementById('soonTitle').textContent = section + ' — Coming Soon'; document.getElementById('soon').showModal(); }
     function showAdminLogin() {
       document.getElementById('adminPassword').value = '';
